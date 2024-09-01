@@ -1,0 +1,41 @@
+# Ignore build directories
+/build/
+/BigInt/build/
+/Rsa/build/
+
+# Ignore CMake-generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CMakeDirectoryInformation.cmake
+progress.marks
+TargetDirectories.txt
+
+# Ignore executables and libraries
+*.exe
+*.out
+*.a
+*.lib
+*.so
+*.dylib
+
+# Ignore logs and other temporary files
+*.log
+*.tmp
+
+# Ignore generated test files
+/BigInt/BigIntTests
+/Rsa/RSATests
+/MainExe
+
+# Ignore external libraries
+/external/googletest/build/
+/external/googletest/CMakeFiles/
+/external/googletest/CMakeCache.txt
+/external/googletest/cmake_install.cmake
+/external/googletest/Makefile
+
+
+# Ignore backup files
+*~
