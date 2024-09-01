@@ -8,8 +8,12 @@
 #include <string>
 #include <vector>
 
+#define BYTES_IN_LIMB 8
+#define BITS_IN_BYTE 8 
+#define BITS_IN_LIMB 64
 class BigInt64 {
 public:
+  enum CreateModes { RANDOM, BIG_ENDIANESS, LITTLE_ENDIANESS };
   // ctors
   BigInt64(const std::string &str);
   BigInt64(long long val = 0);
@@ -17,9 +21,9 @@ public:
   BigInt64(int val);
   BigInt64(bool isNegative);
   BigInt64(const char *str);
-  BigInt64(const uint8_t *str, size_t strLen);
+  BigInt64(const uint8_t *str, size_t strLen,CreateModes mode);
   BigInt64(std::vector<uint64_t> v, bool isNegative);
-  enum CreateModes { RANDOM };
+
   BigInt64(CreateModes mode, int bits);
   BigInt64(CreateModes mode, uint64_t min, const BigInt64 &max);
 
@@ -75,10 +79,10 @@ public:
   friend BigInt64 karatzubaMultiplication(const BigInt64 &a, const BigInt64 &b);
   bool FermasPrimalityTest(int k = 1) const;
   bool MillerRabinPrimalityTest(int k = 1) const;
-  BigInt64 nextPrime(int k=1)const;
+  BigInt64 nextPrime(int k = 1) const;
   friend BigInt64 extendedGcd(BigInt64 a, BigInt64 b, BigInt64 &x, BigInt64 &y);
   friend BigInt64 modularInverse(BigInt64 a, BigInt64 b);
-  void exportTo(uint8_t *out, size_t outLen)const;
+  void exportTo(uint8_t *out, size_t outLen,CreateModes mode) const;
   // friend BigInt64 sqrt(BigInt64 a);
   // friend BigInt64 modularRoot(BigInt64 a, BigInt64 p);
 private:

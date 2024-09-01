@@ -5,9 +5,11 @@
 #include <iomanip>
 #include <iostream>
 #include <stdexcept>
-
+#include <string>
 using namespace std;
-void printBufferHexa(const unsigned char *buffer, size_t len) {
+void printBufferHexa(const unsigned char *buffer, size_t len,
+                     const string &message) {
+  cout << message << endl;
   for (size_t i = 0; i < len; ++i) {
     std::cout << std::hex << std::setw(2) << std::setfill('0')
               << static_cast<int>(buffer[i]) << " ";
@@ -17,7 +19,7 @@ void printBufferHexa(const unsigned char *buffer, size_t len) {
       std::cout << std::endl;
     }
   }
-  std::cout << std::endl;
+  std::cout << std::endl << endl;
   // Reset the stream format back to decimal
   std::cout << std::dec;
 }
@@ -40,7 +42,6 @@ void rsaKeysGeneration(const BigInt64 &p, const BigInt64 &q, size_t keySize,
   BigInt64 pMinus1 = p - 1;
   BigInt64 qMinus1 = q - 1;
   phi = pMinus1 * qMinus1;
-
   // Choose e such that 1 < e < phi and gcd(e, phi) = 1 (coprime)
   // A common choice for e is 65537
   e = 65537;
@@ -50,10 +51,11 @@ void rsaKeysGeneration(const BigInt64 &p, const BigInt64 &q, size_t keySize,
     if (e > phi)
       e = 17;
   }
-
+  cout << phi << endl;
   // d is the modular inverse of e modulo ϕ(n) or e^-1 mod phi
   //  0<d<phi and  (d * e) % phi = 1 ,<- (d*e -1) is divisible by phi
   d = modularInverse(e, phi);
+  cout << d << endl;
 }
 
 RsaKeys *rsaGenerateKeys(size_t keySize) {
@@ -64,11 +66,13 @@ RsaKeys *rsaGenerateKeys(size_t keySize) {
   // Generate large prime numbers
   rsaGeneratePrime(keySize / 2, p);
   rsaGeneratePrime(keySize / 2, q);
-
+  cout << p << endl;
+  cout << q << endl;
   // Compute n = p * q
   n = p * q;
   // } while (n.bitsCount()!= keySize);
-
+  cout << n << endl;
+  cout<<n.bitsCount() << endl;
   rsaKeysGeneration(p, q, keySize, e, d);
 
   // Now store in HSM the e, d, n for keyId
@@ -83,8 +87,8 @@ void rsaPkcs1v15Pad(const uint8_t *plaintext, size_t plaintextLen,
     throw std::runtime_error("Plaintext is too long for padding");
   }
 
-  // Start with 0x01 0x02
-  padded[0] = 0x01;
+  // Start with 0x00 0x02
+  padded[0] = 0x00;
   padded[1] = 0x02;
 
   // Add non-zero random padding
@@ -107,34 +111,34 @@ void rsaEncrypt(const uint8_t *plaintext, size_t plaintextLen,
                 const BigInt64 &n, const BigInt64 &key, uint8_t *ciphertext,
                 size_t ciphertextLen, size_t keySize) {
   // Get key size in bytes
-  size_t keySizeBytes = keySize / 8;
+  size_t keySizeBytes = keySize / BITS_IN_BYTE;
 
   if (ciphertextLen != keySizeBytes) {
     throw std::runtime_error("Invalid ciphertext length");
   }
   size_t paddedLen = keySizeBytes;
-  printBufferHexa(plaintext, plaintextLen);
+  printBufferHexa(plaintext, plaintextLen, "plain text");
   // Padding plaintext to keySizeBytes
   uint8_t *padded = new uint8_t[keySizeBytes];
   rsaPkcs1v15Pad(plaintext, plaintextLen, padded, keySizeBytes);
 
-  printBufferHexa(padded, paddedLen);
+  printBufferHexa(padded, paddedLen, "padded plain text");
   // Convert padded plaintext to BigInt64
-  BigInt64 plainNumber(padded, paddedLen);
-  cout << plainNumber << endl;
-  cout<<key<<endl;
-  cout<<n<<endl;
+  BigInt64 plainNumber(padded, paddedLen,BigInt64::CreateModes::BIG_ENDIANESS);
+  cout << "plain number" << endl << plainNumber << endl;
+  cout << "key" << endl << key << endl;
+  cout << "n" << endl << n << endl;
   // Encrypt message:
   BigInt64 cipherNumber = modularExponentiation(plainNumber, key, n);
-  cout << cipherNumber << endl;
+  cout << "cipher number" << endl << cipherNumber << endl;
   memset(ciphertext, 0, keySizeBytes);
   // Convert ciphertext from mpz_class to uint8_t
 
   //   size_t offset = keySizeBytes - (mpz_sizeinbase(c.get_mpz_t(), 2) + 7) /
   //   8;
 
-  cipherNumber.exportTo(ciphertext, ciphertextLen);
-  printBufferHexa(ciphertext, ciphertextLen);
+  cipherNumber.exportTo(ciphertext, ciphertextLen,BigInt64::CreateModes::BIG_ENDIANESS);
+  printBufferHexa(ciphertext, ciphertextLen, "cipher text");
   //   mpz_export(ciphertext + offset, nullptr, 1, sizeof(ciphertext[0]), 0, 0,
   //              c.get_mpz_t());
 
@@ -150,28 +154,25 @@ void rsaDecrypt(const uint8_t *ciphertext, size_t ciphertextLen,
     throw std::runtime_error("Invalid ciphertext length");
   }
 
-  //   mpz_class c, m;
-  printBufferHexa(ciphertext, ciphertextLen);
+  // printBufferHexa(ciphertext, ciphertextLen, "cipher text");
   // Convert ciphertext to BigInt64
-  BigInt64 cipherNumber(ciphertext, ciphertextLen);
-  cout << cipherNumber << endl;
-  //   mpz_import(c.get_mpz_t(), keySizeBytes, 1, sizeof(ciphertext[0]), 0, 0,
-  //              ciphertext);
+  BigInt64 cipherNumber(ciphertext, ciphertextLen,BigInt64::CreateModes::BIG_ENDIANESS);
+  // cout << "cipher number" << endl << cipherNumber << endl;
 
-  // Decrypt message: m = c^d % n
-  //   mpz_powm(m.get_mpz_t(), c.get_mpz_t(), key.get_mpz_t(), n.get_mpz_t());
+  // cout << "key" << endl << key << endl;
+  // cout << "n" << endl << n << endl;
+  // Decrypt message: m = cipher^d % n
   BigInt64 plainNumber = modularExponentiation(cipherNumber, key, n);
-  cout << plainNumber << endl;
+  // cout << "plain number" << endl << plainNumber << endl;
   // Convert decrypted message from mpz_class to uint8_t
   uint8_t *padded = new uint8_t[keySizeBytes];
   size_t paddedLen = keySizeBytes;
-  // mpz_export(padded, nullptr, 1, sizeof(padded[0]), 0, 0, m.get_mpz_t());
-  plainNumber.exportTo(padded, paddedLen);
-  printBufferHexa(padded, paddedLen);
+  plainNumber.exportTo(padded, paddedLen,BigInt64::CreateModes::BIG_ENDIANESS);
+  // printBufferHexa(padded, paddedLen, "padded");
 
   // Remove padding
   rsaPkcs1v15Unpad(padded, paddedLen, plaintext, plaintextLen);
-  printBufferHexa(plaintext, *plaintextLen);
+  // printBufferHexa(plaintext, *plaintextLen, "plain");
   delete[] padded;
 }
 
@@ -183,12 +184,12 @@ size_t rsaGetDecryptedLen(size_t keySize) {
 
   // Remove the padding: The maximum length of the plaintext is keySize -
   // minPaddingLength
-  return keySize / 8 - minPaddingLength;
+  return keySize / BITS_IN_BYTE - minPaddingLength;
 }
 
 void rsaPkcs1v15Unpad(const uint8_t *padded, size_t paddedLen,
                       uint8_t *plaintext, size_t *plaintextLen) {
-  if (paddedLen < 11 || padded[0] != 0x01 || padded[1] != 0x02) {
+  if (paddedLen < 11 || padded[0] != 0x00 || padded[1] != 0x02) {
     throw std::runtime_error("Invalid padding");
   }
 

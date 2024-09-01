@@ -10,33 +10,56 @@ BigInt64::BigInt64(const string &str) {
 
 BigInt64::BigInt64(const char *str) { initFromString(str, std::strlen(str)); }
 
-BigInt64::BigInt64(const uint8_t *str, size_t strLen) : isNegative(false) {
+BigInt64::BigInt64(const uint8_t *str, size_t strLen, CreateModes mode)
+    : isNegative(false) {
   if (strLen == 0) {
     limbs.push_back(0);
     return;
   }
-  int fullLimbs = strLen / 8;
-  int msbParts = strLen % 8;
-  int limbsCnt = fullLimbs + (msbParts + 7) / 8;
+  int fullLimbs = strLen / BYTES_IN_LIMB;
+  int msbParts = strLen % BYTES_IN_LIMB;
+  int limbsCnt = fullLimbs + (msbParts + BYTES_IN_LIMB-1) / BYTES_IN_LIMB;
   limbs.reserve(limbsCnt);
-  for (int i = 0; i < fullLimbs; i++) {
-    int index = strLen - 1 - i * 8;
-    // little endian-> {0,1,2,3,4,5,6,7} becones 0x 07 06 05 04 03 02 01 00
-    limbs.push_back((static_cast<uint64_t>(str[index]) << 56) |
-                    (static_cast<uint64_t>(str[index - 1]) << 48) |
-                    (static_cast<uint64_t>(str[index - 2]) << 40) |
-                    (static_cast<uint64_t>(str[index - 3]) << 32) |
-                    (static_cast<uint64_t>(str[index - 4]) << 24) |
-                    (static_cast<uint64_t>(str[index - 5]) << 16) |
-                    (static_cast<uint64_t>(str[index - 6]) << 8) |
-                    static_cast<uint64_t>(str[index - 7]));
-  }
-  if (msbParts != 0) {
-    uint64_t msb = 0;
-    for (int i = 0; i < msbParts; i++) {
-      msb |= static_cast<uint64_t>(str[i]) << (i * 8);
+  if (mode == CreateModes::LITTLE_ENDIANESS) {
+    for (int i = 0; i < fullLimbs; i++) {
+      int index = strLen - 1 - i * BYTES_IN_LIMB;
+      // little endian-> {0,1,2,3,4,5,6,7} becones 0x 07 06 05 04 03 02 01 00
+      limbs.push_back((static_cast<uint64_t>(str[index]) << 56) |
+                      (static_cast<uint64_t>(str[index - 1]) << 48) |
+                      (static_cast<uint64_t>(str[index - 2]) << 40) |
+                      (static_cast<uint64_t>(str[index - 3]) << 32) |
+                      (static_cast<uint64_t>(str[index - 4]) << 24) |
+                      (static_cast<uint64_t>(str[index - 5]) << 16) |
+                      (static_cast<uint64_t>(str[index - 6]) << 8) |
+                      static_cast<uint64_t>(str[index - 7]));
     }
-    limbs.push_back(msb);
+    if (msbParts != 0) {
+      uint64_t msb = 0;
+      for (int i = 0; i < msbParts; i++) {
+        msb |= static_cast<uint64_t>(str[i]) << (i * BITS_IN_BYTE);
+      }
+      limbs.push_back(msb);
+    }
+  } else {
+    // big endian-> {0,1,2,3,4,5,6,7} becones 0x 00 01 02 03 04 05 06 07
+    for (int i = 0; i < fullLimbs; i++) {
+      int index = strLen - 1 - i * BYTES_IN_LIMB;
+      limbs.push_back(static_cast<uint64_t>(str[index])  |
+                      (static_cast<uint64_t>(str[index - 1]) << 8) |
+                      (static_cast<uint64_t>(str[index - 2]) << 16) |
+                      (static_cast<uint64_t>(str[index - 3]) << 24) |
+                      (static_cast<uint64_t>(str[index - 4]) << 32) |
+                      (static_cast<uint64_t>(str[index - 5]) << 40) |
+                      (static_cast<uint64_t>(str[index - 6]) << 48) |
+                      (static_cast<uint64_t>(str[index - 7])<<56));
+    }
+    if (msbParts != 0) {
+      uint64_t msb = 0;
+      for (int i = 0; i < msbParts; i++) {
+        msb |= static_cast<uint64_t>(str[msbParts - 1 - i]) << (i * BITS_IN_BYTE);
+      }
+      limbs.push_back(msb);
+    }
   }
   removeLeadingZeros();
 }
@@ -45,9 +68,9 @@ BigInt64::BigInt64(std::vector<uint64_t> v, bool isNegative)
     : limbs(v), isNegative(isNegative) {}
 
 BigInt64::BigInt64(CreateModes mode, int bits) : isNegative(false) {
-  if (bits >= 64)
-    generateNLimbsRandom(bits / 64);
-  bits = bits % 64; // 0-63
+  if (bits >= BITS_IN_LIMB)
+    generateNLimbsRandom(bits / BITS_IN_LIMB);
+  bits = bits % BITS_IN_LIMB; // 0-63
   if (bits != 0) {
     uint64_t one = static_cast<uint64_t>(1);
     limbs.push_back(randomLimb(0, (one << bits) - 1) | (one << (bits - 1)));
@@ -245,7 +268,10 @@ BigInt64 &BigInt64::operator%=(const BigInt64 &b) {
   // this%=b;
   BigInt64 remainder;
   longDivision(*this, b, remainder);
-  *this = remainder;
+  if (isNegative)
+    *this = b - remainder;
+  else
+    *this = remainder;
   return *this;
 }
 
@@ -510,17 +536,22 @@ BigInt64 BigInt64::nextPrime(int k) const {
   return res;
 }
 
-void BigInt64::exportTo(uint8_t *out, size_t outLen) const {
+void BigInt64::exportTo(uint8_t *out, size_t outLen, CreateModes mode) const {
   // int msbBytes = (::bitsCount(limbs.back()) + 7) / 8;
   // int innerLimbsBytes = (limbsCount() - 1) * 8;
-  if (outLen < limbsCount() * 8)
+  if (outLen < limbsCount() * BYTES_IN_LIMB)
     //  if ((msbBytes + innerLimbsBytes) > outLen)
     throw std::runtime_error("Not enough space in output buffer");
-
-  for (int i = 0; i < limbsCount(); i++)
-    for (int j = 0; j < 8; j++)
-      out[outLen - 1 - i * 8 - (7 - j)] =
-          static_cast<uint8_t>(limbs[i] >> (j * 8));
+  if (mode == CreateModes::LITTLE_ENDIANESS)
+    for (int i = 0; i < limbsCount(); i++)
+      for (int j = 0; j <BYTES_IN_LIMB ; j++)
+        out[outLen - 1 - i * BYTES_IN_LIMB - (7 - j)] =
+            static_cast<uint8_t>(limbs[i] >> (j * BITS_IN_BYTE));
+  else
+    for (int i = 0; i < limbsCount(); i++)
+      for (int j = 0; j < BYTES_IN_LIMB; j++)
+        out[outLen - 1 - i * BYTES_IN_LIMB - j] =
+            static_cast<uint8_t>(limbs[i] >> (j * BITS_IN_BYTE));
   // uint64_t msb = limbs.back();
   // for (int i = 0; i < msbBytes; i++)
   //   out[outLen - innerLimbsBytes - (msbBytes - i)] =
@@ -536,7 +567,7 @@ int BigInt64::bitsCount() const {
   uint64_t mostSignificantLimb = limbs.back();
   int inMsb = ::bitsCount(mostSignificantLimb);
 
-  return inMsb + (limbsCount() - 1) * 64;
+  return inMsb + (limbsCount() - 1) * BITS_IN_LIMB;
 }
 void BigInt64::thisEqualsbBSubthis(const BigInt64 &b) {
   BigInt64 copyB(b);
@@ -745,12 +776,12 @@ void BigInt64::rightShift(uint64_t n) { //--->
     zero();
     return;
   }
-  uint64_t shiftEachLimb = n % 64;
-  uint64_t dropLimbs = n / 64;
+  uint64_t shiftEachLimb = n % BITS_IN_LIMB;
+  uint64_t dropLimbs = n / BITS_IN_LIMB;
   if (shiftEachLimb != 0) {
     for (int i = 0; i < limbsCount() - 1 - dropLimbs; i++) // lsb...msb
       limbs[i] = limbs[i + dropLimbs] >> shiftEachLimb |
-                 limbs[i + dropLimbs + 1] << (64 - shiftEachLimb);
+                 limbs[i + dropLimbs + 1] << (BITS_IN_LIMB - shiftEachLimb);
     limbs[limbsCount() - 1 - dropLimbs] >>= shiftEachLimb;
     limbs.resize(limbsCount() - dropLimbs);
     if (limbs.back() == 0 && !isZero())
@@ -764,12 +795,12 @@ void BigInt64::leftShift(uint64_t n) { //<---
     zero();
     return;
   }
-  uint64_t shiftEachLimb = n % 64;
-  uint64_t dropLimbs = n / 64;
+  uint64_t shiftEachLimb = n % BITS_IN_LIMB;
+  uint64_t dropLimbs = n / BITS_IN_LIMB;
   if (shiftEachLimb != 0) {
     for (int i = limbsCount() - 1; i > dropLimbs; i--) { // msb-lst
       limbs[i] = limbs[i - dropLimbs] << shiftEachLimb |
-                 limbs[i - dropLimbs - 1] >> (64 - shiftEachLimb);
+                 limbs[i - dropLimbs - 1] >> (BITS_IN_LIMB - shiftEachLimb);
     }
     limbs[0] <<= shiftEachLimb;
   } else {
@@ -810,7 +841,8 @@ BigInt64 modularInverse(BigInt64 a, BigInt64 b) {
   BigInt64 gcdResult = extendedGcd(a, b, x, y);
   if (gcdResult != 1)
     throw std::invalid_argument("Modular inverse does not exist.");
-  return (x % b + b) % b; // Ensure result is positive
+  cout << x << endl << y << endl;
+  return x % b; // Ensure result is positive
 }
 
 // BigInt64 sqrt(BigInt64 a) {

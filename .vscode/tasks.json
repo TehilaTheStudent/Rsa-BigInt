@@ -74,7 +74,7 @@
         {
             "label": "Run BigInt Tests=from debug",
             "type": "shell",
-            "command": "${workspaceFolder}/build/Debug/BigIntTests",
+            "command": "${workspaceFolder}/build/Debug/BigInt/BigIntTests",
             "group": {
                 "kind": "test",
                 "isDefault": false
@@ -91,7 +91,7 @@
         {
             "label": "Run BigInt Tests=from release",
             "type": "shell",
-            "command": "${workspaceFolder}/build/Release/BigIntTests",
+            "command": "${workspaceFolder}/build/Release/BigInt/BigIntTests",
             "group": {
                 "kind": "test",
                 "isDefault": false
@@ -108,7 +108,7 @@
         {
             "label": "Run RSA Tests= from debug",
             "type": "shell",
-            "command": "${workspaceFolder}/build/Debug/RSATests",
+            "command": "${workspaceFolder}/build/Debug/Rsa/RSATests",
             "group": {
                 "kind": "test",
                 "isDefault": false
@@ -125,7 +125,7 @@
         {
             "label": "Run RSA Tests= from release",
             "type": "shell",
-            "command": "${workspaceFolder}/build/Release/RSATests",
+            "command": "${workspaceFolder}/build/Release/Rsa/RSATests",
             "group": {
                 "kind": "test",
                 "isDefault": false

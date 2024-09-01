@@ -5,15 +5,52 @@
 using namespace std;
 
 TEST(BigInt64, importAndExport) {
-  std::vector<uint8_t> input = {0,1,2,3,4,5,6,7,8};
-  BigInt64 imported(input.data(), input.size());
+  std::vector<uint8_t> input = {0, 1, 2, 3, 4, 5, 6, 7,8,9,10,11,12,13,14,15};
+  BigInt64 imported(input.data(), input.size(),BigInt64::CreateModes::BIG_ENDIANESS);
 
   // Export to verify
-  std::vector<uint8_t> output(input.size()+8);
-  imported.exportTo(output.data()+7, output.size());
+  std::vector<uint8_t> output(input.size());
+  imported.exportTo(output.data(), output.size(),BigInt64::CreateModes::BIG_ENDIANESS);
 
-  EXPECT_EQ(input , output);
+  EXPECT_EQ(input, output);
 }
+TEST(BigInt64, extendedGcd) {
+  BigInt64 a = 56;
+  BigInt64 b = 15;
+  BigInt64 x, y;
+
+  BigInt64 gcd = extendedGcd(a, b, x, y);
+  std::cout << "GCD: " << gcd << std::endl;
+  std::cout << "Coefficients x and y: " << x << ", " << y << std::endl;
+  std::cout << "Verification: " << a << " * " << x << " + " << b << " * " << y
+            << " = " << gcd << std::endl;
+}
+TEST(BigInt64, modularExponentiation) {
+  BigInt64 base =
+      "835304337161549408516823457653920732870848370995837472899775197330034228"
+      "330314363811208830129050412030616037690536169191321700128337049976118575"
+      "269098327499792971323755746059221034579743048952170233109401079758809645"
+      "400138957785244386111865302737345676553321669398585925399482702515730417"
+      "88940813980383233972";
+  BigInt64 exponent =
+      "838347588072567329456522221667448492722234883733438107963315465932369276"
+      "474628262694993878706597347708025407307349693556975350132406474989646780"
+      "355045330238180169084780938627858915414929367442819695585963508598208058"
+      "396639195264199340539868911263699915642056057389921468569799034442456123"
+      "04000269825988560097";
+  BigInt64 modulus =
+      "138479958262632134257064322372661948902259371616467620153832491612531635"
+      "302947319683234154277928177498519840689115980156571193982868059572885272"
+      "195319718078116374649597519158731938081360618058003826595676876687418330"
+      "199036695178741957477834497819355943591805373063052537018283804794563712"
+      "646823358120276366211";
+
+  BigInt64 res = modularExponentiation(base, exponent, modulus);
+  cout << res << endl;
+  BigInt64 actual = "88198";
+  EXPECT_EQ(res, actual);
+}
+
 TEST(BigInt64, Multiplication) {
   BigInt64 a("-654365436534654365436543654365436436543654363");
   BigInt64 b("6543654365436536543654365436536436543654365436543653");
@@ -53,14 +90,7 @@ TEST(BigInt64, randomBits) {
   EXPECT_EQ(a.bitsCount(), 64);
   EXPECT_EQ(b, 1);
 }
-TEST(BigInt64, modularExponentiation) {
-  BigInt64 a("5435432543254325432");
-  BigInt64 b("543254");
 
-  BigInt64 res = modularExponentiation(a, b - 1, b);
-  BigInt64 actual = "88198";
-  EXPECT_EQ(res, actual);
-}
 TEST(BigInt64, karatzubaMultiplication) {
   BigInt64 a(BigInt64::CreateModes::RANDOM, 4096);
   BigInt64 b(BigInt64::CreateModes::RANDOM, 4096);
@@ -164,4 +194,3 @@ TEST(BigInt64, ShiftByBitsCount) {
   EXPECT_EQ(resRight, expectedRight);
   EXPECT_EQ(resLeft, expectedLeft);
 }
-
