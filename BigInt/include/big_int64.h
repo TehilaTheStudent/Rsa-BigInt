@@ -77,7 +77,7 @@ public:
                                         const BigInt64 &modulus);
   friend BigInt64 gcd(BigInt64 a, BigInt64 b);
   friend BigInt64 karatzubaMultiplication(const BigInt64 &a, const BigInt64 &b);
-  bool FermasPrimalityTest(int k = 1) const;
+  bool FermatPrimalityTest(int k = 1) const;
   bool MillerRabinPrimalityTest(int k = 1) const;
   BigInt64 nextPrime(int k = 1) const;
   friend BigInt64 extendedGcd(BigInt64 a, BigInt64 b, BigInt64 &x, BigInt64 &y);

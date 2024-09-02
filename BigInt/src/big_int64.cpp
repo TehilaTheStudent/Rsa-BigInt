@@ -18,7 +18,7 @@ BigInt64::BigInt64(const uint8_t *str, size_t strLen, CreateModes mode)
   }
   int fullLimbs = strLen / BYTES_IN_LIMB;
   int msbParts = strLen % BYTES_IN_LIMB;
-  int limbsCnt = fullLimbs + (msbParts + BYTES_IN_LIMB-1) / BYTES_IN_LIMB;
+  int limbsCnt = fullLimbs + (msbParts + BYTES_IN_LIMB - 1) / BYTES_IN_LIMB;
   limbs.reserve(limbsCnt);
   if (mode == CreateModes::LITTLE_ENDIANESS) {
     for (int i = 0; i < fullLimbs; i++) {
@@ -44,19 +44,20 @@ BigInt64::BigInt64(const uint8_t *str, size_t strLen, CreateModes mode)
     // big endian-> {0,1,2,3,4,5,6,7} becones 0x 00 01 02 03 04 05 06 07
     for (int i = 0; i < fullLimbs; i++) {
       int index = strLen - 1 - i * BYTES_IN_LIMB;
-      limbs.push_back(static_cast<uint64_t>(str[index])  |
+      limbs.push_back(static_cast<uint64_t>(str[index]) |
                       (static_cast<uint64_t>(str[index - 1]) << 8) |
                       (static_cast<uint64_t>(str[index - 2]) << 16) |
                       (static_cast<uint64_t>(str[index - 3]) << 24) |
                       (static_cast<uint64_t>(str[index - 4]) << 32) |
                       (static_cast<uint64_t>(str[index - 5]) << 40) |
                       (static_cast<uint64_t>(str[index - 6]) << 48) |
-                      (static_cast<uint64_t>(str[index - 7])<<56));
+                      (static_cast<uint64_t>(str[index - 7]) << 56));
     }
     if (msbParts != 0) {
       uint64_t msb = 0;
       for (int i = 0; i < msbParts; i++) {
-        msb |= static_cast<uint64_t>(str[msbParts - 1 - i]) << (i * BITS_IN_BYTE);
+        msb |= static_cast<uint64_t>(str[msbParts - 1 - i])
+               << (i * BITS_IN_BYTE);
       }
       limbs.push_back(msb);
     }
@@ -464,7 +465,7 @@ bool is_divisible_by_small_primes(const BigInt64 &n) {
       return true;
   return false;
 }
-bool BigInt64::FermasPrimalityTest(int k) const {
+bool BigInt64::FermatPrimalityTest(int k) const {
   if (*this == 2)
     return true;
 
@@ -528,11 +529,12 @@ BigInt64 BigInt64::nextPrime(int k) const {
   BigInt64 res = *this;
   if (res.isEven())
     res++;
-
-  while (!res.FermasPrimalityTest(k)) {
-    res += 2;
-  }
-
+  do {
+    while (!res.FermatPrimalityTest(k)) {
+      res += 2;
+    }
+    //candidate passed fermats test
+  } while (!res.MillerRabinPrimalityTest());
   return res;
 }
 
@@ -544,7 +546,7 @@ void BigInt64::exportTo(uint8_t *out, size_t outLen, CreateModes mode) const {
     throw std::runtime_error("Not enough space in output buffer");
   if (mode == CreateModes::LITTLE_ENDIANESS)
     for (int i = 0; i < limbsCount(); i++)
-      for (int j = 0; j <BYTES_IN_LIMB ; j++)
+      for (int j = 0; j < BYTES_IN_LIMB; j++)
         out[outLen - 1 - i * BYTES_IN_LIMB - (7 - j)] =
             static_cast<uint8_t>(limbs[i] >> (j * BITS_IN_BYTE));
   else
@@ -804,7 +806,6 @@ void BigInt64::leftShift(uint64_t n) { //<---
     }
     limbs[0] <<= shiftEachLimb;
   } else {
-    // sycl here?
     for (int i = limbsCount() - 1; i >= dropLimbs; i--)
       limbs[i] = limbs[i - dropLimbs];
     for (int i = dropLimbs - 1; i >= 0; i--)

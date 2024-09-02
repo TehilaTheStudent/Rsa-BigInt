@@ -152,7 +152,7 @@ TEST(BigInt64, nextPrime2048) {
   cout << n << endl;
   cout << "gap:" << n - a << endl;
   EXPECT_EQ(n, realNext);
-  EXPECT_TRUE(n.FermasPrimalityTest());
+  EXPECT_TRUE(n.FermatPrimalityTest());
   EXPECT_TRUE(n.MillerRabinPrimalityTest());
 }
 TEST(BigInt64, nextPrime1024) {
@@ -176,7 +176,7 @@ TEST(BigInt64, nextPrime1024) {
   cout << n << endl;
   cout << "gap:" << n - a << endl;
   EXPECT_EQ(n, realNext);
-  EXPECT_TRUE(n.FermasPrimalityTest());
+  EXPECT_TRUE(n.FermatPrimalityTest());
   EXPECT_TRUE(n.MillerRabinPrimalityTest());
 }
 TEST(BigInt64, ShiftByBitsCount) {
